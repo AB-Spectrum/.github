@@ -1,0 +1,193 @@
+name: 📊 Data Quality Issue
+description: Report data quality, accuracy, or integrity problems
+title: "[Data Quality]: "
+labels: ["data-quality", "critical"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Data quality is critical for effective therapy outcomes. Please provide detailed information about the data issue.
+
+  - type: dropdown
+    id: data-source
+    attributes:
+      label: Data Source
+      description: Which data source is affected?
+      options:
+        - Therapy Session Data
+        - Patient Progress Data
+        - Behavioral Observations
+        - Assessment Results
+        - Family Feedback
+        - Clinical Notes
+        - Scheduling Data
+        - Billing Data
+        - External Integrations
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What type of data quality issue is this?
+      options:
+        - Missing Data
+        - Incorrect Values
+        - Duplicate Records
+        - Schema Violations
+        - Data Corruption
+        - Inconsistent Formatting
+        - Delayed Data Arrival
+        - Outlier Values
+        - Relationship Integrity
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Detailed description of the data quality problem
+      placeholder: |
+        Describe the data quality issue:
+        - What specific data is affected?
+        - When was this first observed?
+        - What makes you think the data is incorrect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Clinical Impact
+      description: How does this data issue affect therapy delivery or clinical decisions?
+      placeholder: |
+        Clinical and operational impact:
+        - Affected therapy sessions/patients
+        - Impact on treatment planning
+        - Risk to therapeutic outcomes
+        - Affected reports or analytics
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Data Examples
+      description: Provide anonymized examples of the problematic data (ensure HIPAA compliance)
+      placeholder: |
+        Anonymized examples:
+        ```
+        Expected: session_duration = 45 minutes
+        Actual: session_duration = -10 minutes
+
+        Expected: progress_score = 0.85
+        Actual: progress_score = null
+        ```
+    validations:
+      required: true
+
+  - type: input
+    id: affected-records
+    attributes:
+      label: Number of Affected Records
+      description: Approximately how many records are affected?
+      placeholder: "~100 records, 5% of data, unknown"
+
+  - type: input
+    id: date-range
+    attributes:
+      label: Date Range
+      description: What date range is affected by this issue?
+      placeholder: "2024-01-01 to 2024-01-15"
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Level
+      description: How severe is this data quality issue?
+      options:
+        - Critical - Immediate therapy delivery impact
+        - High - Significant clinical decision impact
+        - Medium - Affects reporting accuracy
+        - Low - Minor data inconsistency
+    validations:
+      required: true
+
+  - type: textarea
+    id: root-cause
+    attributes:
+      label: Suspected Root Cause
+      description: Do you have any ideas about what might be causing this issue?
+      placeholder: |
+        Possible causes:
+        - Recent system changes
+        - Integration issues
+        - User input errors
+        - Data migration problems
+        - External system changes
+
+  - type: textarea
+    id: validation-rules
+    attributes:
+      label: Validation Rules Needed
+      description: What data validation rules should be implemented to prevent this in the future?
+      placeholder: |
+        Suggested validation rules:
+        - Range checks (e.g., session_duration > 0 and < 120 minutes)
+        - Required field validations
+        - Format validations
+        - Business rule validations
+
+  - type: checkboxes
+    id: data-lineage
+    attributes:
+      label: Data Lineage
+      description: Which systems/processes might be involved?
+      options:
+        - label: Data ingestion pipeline
+        - label: ETL processes
+        - label: Manual data entry
+        - label: API integrations
+        - label: Database migrations
+        - label: Third-party systems
+        - label: Backup/restore processes
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Temporary Workaround
+      description: Is there a temporary solution being used to mitigate this issue?
+      placeholder: Describe any workarounds currently in place...
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: |
+        Additional context:
+        - Related system logs
+        - Previous similar issues
+        - Timing correlations
+        - User feedback
+
+  - type: checkboxes
+    id: verification
+    attributes:
+      label: Pre-submission Verification
+      description: Please confirm the following
+      options:
+        - label: I have verified this is a data quality issue, not a display/UI problem
+          required: true
+        - label: I have removed all PHI/sensitive information from this report
+          required: true
+        - label: I have documented the clinical impact of this issue
+          required: true
+        - label: I have provided specific examples of the problematic data
+          required: true

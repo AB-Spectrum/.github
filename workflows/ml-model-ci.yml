@@ -1,0 +1,195 @@
+name: ML Model CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'models/**'
+      - 'ml/**'
+      - 'notebooks/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'models/**'
+      - 'ml/**'
+  workflow_dispatch:
+    inputs:
+      model_name:
+        description: 'Model to train/evaluate'
+        required: false
+        default: 'all'
+
+jobs:
+  model-training:
+    name: Model Training & Evaluation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        model: [behavior-prediction, intervention-optimizer, progress-tracker]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-ml-${{ hashFiles('**/requirements-ml.txt') }}
+
+    - name: Install ML dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install tensorflow scikit-learn xgboost lightgbm
+        pip install mlflow wandb optuna
+        pip install pandas numpy matplotlib seaborn
+        if [ -f ml/requirements.txt ]; then pip install -r ml/requirements.txt; fi
+
+    - name: Download training data
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: |
+        python scripts/download_training_data.py --model ${{ matrix.model }}
+
+    - name: Train model
+      run: |
+        python ml/train.py --model ${{ matrix.model }} --experiment-name ci-training
+
+    - name: Evaluate model
+      run: |
+        python ml/evaluate.py --model ${{ matrix.model }} --generate-report
+
+    - name: Run model tests
+      run: |
+        pytest ml/tests/test_${{ matrix.model }}.py -v --tb=short
+
+    - name: Check model performance thresholds
+      run: |
+        python scripts/check_model_thresholds.py --model ${{ matrix.model }}
+
+    - name: Upload model artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: model-${{ matrix.model }}
+        path: |
+          models/${{ matrix.model }}/
+          reports/${{ matrix.model }}_evaluation.html
+
+  model-validation:
+    name: Model Validation & Bias Check
+    needs: model-training
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Download model artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: models/
+
+    - name: Install validation tools
+      run: |
+        pip install fairlearn aif360 shap lime
+        pip install tensorflow scikit-learn pandas numpy
+
+    - name: Run bias detection
+      run: |
+        python ml/validation/detect_bias.py --all-models
+
+    - name: Generate interpretability reports
+      run: |
+        python ml/validation/model_interpretability.py --generate-shap
+
+    - name: Validate against clinical standards
+      run: |
+        python ml/validation/clinical_validation.py
+
+    - name: Cross-validation check
+      run: |
+        python ml/validation/cross_validate.py --folds 10
+
+    - name: Upload validation reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: validation-reports
+        path: reports/validation/
+
+  model-registry:
+    name: Model Registry & Versioning
+    needs: [model-training, model-validation]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Download validated models
+      uses: actions/download-artifact@v3
+      with:
+        path: models/
+
+    - name: Configure MLflow
+      env:
+        MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+        MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+      run: |
+        pip install mlflow boto3
+        mlflow --version
+
+    - name: Register models
+      run: |
+        python scripts/register_models.py --env production
+
+    - name: Tag model version
+      run: |
+        python scripts/tag_model_version.py --version ${{ github.sha }}
+
+    - name: Generate model card
+      run: |
+        python scripts/generate_model_card.py
+
+    - name: Update model documentation
+      run: |
+        python scripts/update_model_docs.py
+
+  ab-testing:
+    name: A/B Testing Framework
+    needs: model-registry
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up experiment infrastructure
+      run: |
+        python scripts/setup_ab_test.py --split 0.1
+
+    - name: Deploy canary model
+      run: |
+        python scripts/deploy_canary.py --traffic 5
+
+    - name: Monitor initial metrics
+      run: |
+        python scripts/monitor_ab_metrics.py --duration 1h
+
+    - name: Generate A/B test report
+      run: |
+        python scripts/generate_ab_report.py
